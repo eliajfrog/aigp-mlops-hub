@@ -1,0 +1,93 @@
+# =============================================================================
+# 00_setup.yml — One-time JFrog platform setup
+# Phase: 0 Step 4
+#
+# What it does:
+#   Runs setup/00_platform_setup.sh to provision all JFrog infrastructure
+#   required for the aigp-mlops-hub governance pipeline.
+#
+# When to run:
+#   Once per JPD, before any pipeline runs. Safe to re-run — the script
+#   is fully idempotent (checks before creating, handles 409/already-exists).
+#
+# What it creates:
+#   - JFrog project (aigp-demo)
+#   - Docker repositories (local, remote, virtual) with Xray indexing
+#   - AppTrust lifecycle stages (DEV, QA) and lifecycle order
+#   - Unified policy rules (4 custom evidence rules + 2 gate-certify rules)
+#   - Unified policies on correct gates (6 policies)
+#   - Xray security policy (block critical CVEs)
+#   - Xray watch on docker-local repo
+#   - AppTrust application (aigp-devops-helper-llm) with owner
+#
+# Auth method:
+#   OIDC via aigp-hub-github — no long-lived tokens stored in GitHub.
+#   JFROG_TOKEN is passed as env only for REST API calls in the shell
+#   script that cannot use the JF CLI directly.
+#
+# Important:
+#   async=false is MANDATORY on all AppTrust promotion API calls.
+#   This is enforced in 00_platform_setup.sh — do not change.
+# =============================================================================
+
+name: "00 — Platform Setup (one-time)"
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: platform-setup
+  cancel-in-progress: false  # Never cancel a setup mid-run
+
+permissions:
+  id-token: write  # Required for OIDC authentication with JFrog
+  contents: read
+
+jobs:
+  platform-setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI (OIDC)
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+        with:
+          oidc-provider-name: aigp-hub-github
+          oidc-audience: jfrog-github
+
+      - name: Load config and verify non-secret vars
+        run: |
+          set -euo pipefail
+          set -a
+          source <(grep -v '^#' setup/config.env | grep -v '^$' | sed 's/ #.*//')
+          set +a
+          echo "JPD_URL:      ${JPD_URL}"
+          echo "PROJECT_KEY:  ${PROJECT_KEY}"
+          echo "APP_KEY:      ${APPLICATION_KEY}"
+        shell: bash
+
+      - name: Run platform setup script
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          PROJECT_KEY: ${{ vars.PROJECT_KEY }}
+          APP_KEY: ${{ vars.APP_KEY }}
+          EVIDENCE_KEY_ALIAS: ${{ vars.EVIDENCE_KEY_ALIAS }}
+          JFROG_TOKEN: ${{ secrets.JFROG_TOKEN }}
+        run: |
+          set -euo pipefail
+          bash setup/00_platform_setup.sh
+        shell: bash
+
+      - name: Print summary
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          PROJECT_KEY: ${{ vars.PROJECT_KEY }}
+        run: |
+          echo "Platform setup complete. Validate at:"
+          echo "  AppTrust:  ${JF_URL}/ui/apptrust/applications"
+          echo "  Project:   ${JF_URL}/ui/packages?project=${PROJECT_KEY}"
+        shell: bash
