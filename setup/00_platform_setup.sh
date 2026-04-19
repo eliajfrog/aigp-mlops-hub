@@ -17,21 +17,6 @@ set -euo pipefail
 # Run: chmod +x setup/00_platform_setup.sh
 
 # =============================================================================
-# Config loading
-# =============================================================================
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/config.env"
-
-if [[ ! -f "$CONFIG_FILE" ]]; then
-  echo "ERROR: config.env not found at $CONFIG_FILE"
-  exit 1
-fi
-
-set -a
-source "$CONFIG_FILE"
-set +a
-
-# =============================================================================
 # Validate required env vars
 # =============================================================================
 : "${JPD_URL:?JPD_URL is required — source setup/config.env first}"
