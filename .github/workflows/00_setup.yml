@@ -59,15 +59,11 @@ jobs:
           oidc-provider-name: aigp-hub-github
           oidc-audience: jfrog-github
 
-      - name: Load config and verify non-secret vars
+      - name: Verify non-secret vars
         run: |
-          set -euo pipefail
-          set -a
-          source <(grep -v '^#' setup/config.env | grep -v '^$' | sed 's/ #.*//')
-          set +a
-          echo "JPD_URL:      ${JPD_URL}"
-          echo "PROJECT_KEY:  ${PROJECT_KEY}"
-          echo "APP_KEY:      ${APPLICATION_KEY}"
+          echo "JPD_URL:      ${{ vars.JF_URL }}"
+          echo "PROJECT_KEY:  ${{ vars.PROJECT_KEY }}"
+          echo "APP_KEY:      ${{ vars.APP_KEY }}"
         shell: bash
 
       - name: Run platform setup script
