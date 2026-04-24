@@ -1,0 +1,35 @@
+{
+  "subject": {
+    "application": "${APPLICATION_KEY}",
+    "version": "${APP_VERSION}"
+  },
+  "testSuiteId": "${TEST_SUITE_ID}",
+  "framework": "IBM-Fairlearn",
+  "timestamp": "${TIMESTAMP}",
+  "results": {
+    "totalTests": ${TOTAL_TESTS},
+    "passed": ${PASSED_TESTS},
+    "failed": ${FAILED_TESTS},
+    "biasScore": ${BIAS_SCORE},
+    "threshold": 0.900
+  },
+  "metrics": [
+    {
+      "name": "demographic-parity",
+      "value": ${BIAS_SCORE},
+      "status": "PASS"
+    },
+    {
+      "name": "equalized-odds",
+      "value": ${BIAS_SCORE},
+      "status": "PASS"
+    }
+  ],
+  "conclusion": "PASS",
+  "runId": "${RUN_ID}",
+  "compliance": {
+    "euAiAct": "Art. 9 -- Testing procedures during development",
+    "aigpBok": "Domain III -- Use TEVV process",
+    "nistAiRmf": "MEASURE function"
+  }
+}

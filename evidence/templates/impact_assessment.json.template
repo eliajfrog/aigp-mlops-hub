@@ -1,0 +1,35 @@
+{
+  "subject": {
+    "application": "${APPLICATION_KEY}",
+    "version": "${APP_VERSION}"
+  },
+  "assessmentId": "${ASSESSMENT_ID}",
+  "assessor": "${ASSESSOR}",
+  "timestamp": "${TIMESTAMP}",
+  "riskLevel": "${RISK_LEVEL}",
+  "riskScore": ${RISK_SCORE},
+  "findings": [
+    {
+      "category": "data-governance",
+      "description": "Training data sourced from HuggingFace via JFrog Artifactory proxy -- lineage recorded",
+      "status": "PASS"
+    },
+    {
+      "category": "model-purpose",
+      "description": "DevOps question-answering assistant -- limited scope, low autonomy",
+      "status": "PASS"
+    },
+    {
+      "category": "deployment-context",
+      "description": "Internal JFrog SE demo -- no external user exposure",
+      "status": "PASS"
+    }
+  ],
+  "conclusion": "APPROVED",
+  "runId": "${RUN_ID}",
+  "compliance": {
+    "euAiAct": "Art. 9 -- Risk management system",
+    "aigpBok": "Domain IV -- Perform AI Impact Assessment",
+    "nistAiRmf": "GOVERN function"
+  }
+}

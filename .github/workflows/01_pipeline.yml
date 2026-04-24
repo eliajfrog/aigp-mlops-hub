@@ -1,0 +1,150 @@
+# =============================================================================
+# 01_pipeline.yml — AI Governance Pipeline (TRACK 1: ML Model)
+# Phase: 1
+#
+# What it does:
+#   Governs the devops_helper_elia_v2 model through the full AppTrust
+#   evidence gate chain: UNASSIGNED -> DEV -> QA -> PROD.
+#
+# Evidence attached:
+#   UNASSIGNED exit: aigp-impact-assessment        (FAKE -- EU AI Act Art. 9)
+#   DEV exit:        aigp-tevv-bias-test            (FAKE -- EU AI Act Art. 9)
+#   QA exit:         aigp-model-card                (REAL -- EU AI Act Art. 13)
+#   QA exit:         aigp-human-oversight-approval  (MANUAL -- EU AI Act Art. 14)
+#
+# Human approval:
+#   The pipeline blocks at the final step until a human attaches the
+#   aigp-human-oversight-approval evidence in the AppTrust UI.
+#   Default timeout: 30 minutes.
+#
+# Auth method:
+#   OIDC via aigp-hub-github -- no long-lived tokens stored in GitHub.
+#   JF_ADMIN_TOKEN (mapped from JFROG_TOKEN secret) is used only for
+#   AppTrust REST API calls that the JF CLI cannot make directly.
+#
+# Important:
+#   async=false is MANDATORY on all AppTrust promotion API calls.
+#   This is enforced in evidence/promote-lib.sh -- do not change.
+# =============================================================================
+
+name: "01 -- Governance Pipeline (TRACK 1: ML Model)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: "Model version to govern (e.g. 2.1.5)"
+        required: true
+        default: "2.1.5"
+
+concurrency:
+  group: governance-pipeline-${{ github.event.inputs.app_version }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  govern-and-promote:
+    runs-on: ubuntu-latest
+
+    env:
+      APPLICATION_KEY:      ${{ vars.APP_KEY }}
+      APP_VERSION:          ${{ github.event.inputs.app_version }}
+      JPD_URL:              ${{ vars.JF_URL }}
+      JF_URL:               ${{ vars.JF_URL }}
+      JF_ADMIN_TOKEN:       ${{ secrets.JFROG_TOKEN }}
+      EVIDENCE_PRIVATE_KEY: ${{ secrets.EVIDENCE_PRIVATE_KEY }}
+      EVIDENCE_KEY_ALIAS:   ${{ vars.EVIDENCE_KEY_ALIAS }}
+      STAGE_DEV:            "aigp-demo-DEV"
+      STAGE_QA:             "aigp-demo-QA"
+      STAGE_PROD:           "PROD"
+      TEMPLATES_DIR:        "evidence/templates"
+      MODEL_CARD_PATH:      "models/devops-helper/model_card.json"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI (OIDC)
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+        with:
+          oidc-provider-name: aigp-hub-github
+          oidc-audience: jfrog-github
+
+      - name: Verify non-secret vars
+        run: |
+          echo "APPLICATION_KEY: ${APPLICATION_KEY}"
+          echo "APP_VERSION:     ${APP_VERSION}"
+          echo "JPD_URL:         ${JPD_URL}"
+          echo "STAGE_DEV:       ${STAGE_DEV}"
+          echo "STAGE_QA:        ${STAGE_QA}"
+        shell: bash
+
+      - name: Create application version in AppTrust
+        run: |
+          set -euo pipefail
+          source evidence/promote-lib.sh
+          create_app_version
+        shell: bash
+
+      - name: "UNASSIGNED exit -- attach impact assessment evidence"
+        run: |
+          set -euo pipefail
+          source evidence/evidence-lib.sh
+          attach_impact_assessment_evidence
+        shell: bash
+
+      - name: Promote to DEV
+        run: |
+          set -euo pipefail
+          source evidence/promote-lib.sh
+          advance_to_stage "${STAGE_DEV}"
+        shell: bash
+
+      - name: "DEV exit -- attach TEVV bias test evidence"
+        run: |
+          set -euo pipefail
+          source evidence/evidence-lib.sh
+          attach_tevv_bias_test_evidence
+        shell: bash
+
+      - name: Promote to QA
+        run: |
+          set -euo pipefail
+          source evidence/promote-lib.sh
+          advance_to_stage "${STAGE_QA}"
+        shell: bash
+
+      - name: "QA exit -- attach model card evidence"
+        run: |
+          set -euo pipefail
+          source evidence/evidence-lib.sh
+          attach_model_card_evidence
+        shell: bash
+
+      - name: "QA exit -- wait for human approval and release to PROD"
+        timeout-minutes: 35
+        run: |
+          set -euo pipefail
+          source evidence/promote-lib.sh
+          wait_for_human_approval 30 60
+        shell: bash
+
+      - name: Print governance summary
+        if: success()
+        run: |
+          echo "Governance pipeline complete."
+          echo "  Application: ${APPLICATION_KEY} v${APP_VERSION}"
+          echo "  Final stage: PROD"
+          echo "  AppTrust:    ${JPD_URL}/ui/apptrust/applications/${APPLICATION_KEY}"
+          echo ""
+          echo "Evidence gate chain satisfied:"
+          echo "  [UNASSIGNED] aigp-impact-assessment        EU AI Act Art. 9"
+          echo "  [DEV]        aigp-tevv-bias-test            EU AI Act Art. 9"
+          echo "  [QA]         aigp-model-card                EU AI Act Art. 13"
+          echo "  [QA]         aigp-human-oversight-approval  EU AI Act Art. 14"
+        shell: bash

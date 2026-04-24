@@ -1,0 +1,52 @@
+{
+  "modelId": "devops_helper_elia_v2",
+  "displayName": "DevOps Helper v2",
+  "version": "2.1.5",
+  "baseModel": {
+    "name": "Qwen/Qwen1.5-0.5B-Chat",
+    "source": "HuggingFace via JFrog Artifactory proxy",
+    "proxy": "https://tsmemea.jfrog.io/artifactory/api/huggingfaceml/huggingface-remote"
+  },
+  "trainingData": {
+    "dataset": "Szaid3680/Devops",
+    "source": "HuggingFace via JFrog Artifactory proxy",
+    "description": "DevOps Q&A pairs covering CI/CD, containerization, infrastructure-as-code, and cloud operations"
+  },
+  "intendedUse": {
+    "primaryUse": "DevOps question-answering for internal JFrog SE demonstrations",
+    "intendedUsers": ["JFrog Solutions Engineers", "Platform Engineering teams"],
+    "outOfScope": [
+      "Production customer-facing deployments",
+      "Medical or legal advice",
+      "Autonomous decision-making without human review"
+    ]
+  },
+  "limitations": [
+    "Limited to DevOps domain -- general questions may produce poor answers",
+    "Base model (0.5B parameters) has limited reasoning depth",
+    "Not suitable for production customer use without additional validation"
+  ],
+  "ethicsAndBias": {
+    "biasConsiderations": "Training data sourced from public DevOps Q&A -- low risk of demographic bias for this use case",
+    "mitigations": "TEVV bias testing performed at DEV stage gate (see aigp-tevv-bias-test evidence)"
+  },
+  "performance": {
+    "evaluationDataset": "Szaid3680/Devops held-out split",
+    "notes": "Evaluated on domain-specific DevOps Q&A task accuracy"
+  },
+  "governance": {
+    "owner": "Elia Alon (elia@jfrog.com)",
+    "organization": "JFrog",
+    "reviewDate": "2026-04-13",
+    "compliance": {
+      "euAiAct": "Art. 13 -- Transparency and provision of information to users",
+      "aigpBok": "Domain III -- Complete model cards and fact sheets",
+      "nistAiRmf": "MEASURE function"
+    }
+  },
+  "serving": {
+    "endpoint": "https://a0kcaohwpdorq.ml.jfrog.io/v1/devops_helper_elia_v2/predict",
+    "platform": "JFrog ML GPU Cloud",
+    "framework": "vLLM"
+  }
+}
