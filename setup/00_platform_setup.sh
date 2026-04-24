@@ -215,9 +215,11 @@ create_repo "${DOCKER_VIRTUAL_REPO}" "$(jq -n \
 assign_repo_to_project() {
   local repo_key="$1"
   log_step "Assigning repo '${repo_key}' to project '${PROJECT_KEY}'"
+  local payload
+  payload=$(jq -n --arg proj "${PROJECT_KEY}" '{"projectKey": $proj}')
   local code
-  code=$(jfrog_api_call PUT \
-    "${JPD}/access/api/v1/projects/_/attach/repositories/${repo_key}?projectKey=${PROJECT_KEY}")
+  code=$(jfrog_api_call POST \
+    "${JPD}/artifactory/api/repositories/${repo_key}" "$payload")
   case "$code" in
     200|201|204)
       log_success "Repo '${repo_key}' assigned to project '${PROJECT_KEY}' (HTTP $code)" ;;
