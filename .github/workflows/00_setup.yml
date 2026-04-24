@@ -69,6 +69,7 @@ jobs:
       - name: Run platform setup script
         env:
           JF_URL: ${{ vars.JF_URL }}
+          JPD_URL: ${{ vars.JF_URL }}
           PROJECT_KEY: ${{ vars.PROJECT_KEY }}
           APP_KEY: ${{ vars.APP_KEY }}
           EVIDENCE_KEY_ALIAS: ${{ vars.EVIDENCE_KEY_ALIAS }}
