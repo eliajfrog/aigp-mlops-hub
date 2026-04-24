@@ -71,10 +71,19 @@ jobs:
           JF_URL: ${{ vars.JF_URL }}
           JPD_URL: ${{ vars.JF_URL }}
           PROJECT_KEY: ${{ vars.PROJECT_KEY }}
+          APPLICATION_KEY: ${{ vars.APP_KEY }}
           APP_KEY: ${{ vars.APP_KEY }}
           EVIDENCE_KEY_ALIAS: ${{ vars.EVIDENCE_KEY_ALIAS }}
           JFROG_TOKEN: ${{ secrets.JFROG_TOKEN }}
           JF_ADMIN_TOKEN: ${{ secrets.JFROG_TOKEN }}
+          STAGE_DEV: "aigp-demo-DEV"
+          STAGE_QA: "aigp-demo-QA"
+          STAGE_PROD: "PROD"
+          DOCKER_LOCAL_REPO: "aigp-demo-docker-local"
+          DOCKER_REMOTE_REPO: "aigp-demo-docker-remote"
+          DOCKER_VIRTUAL_REPO: "aigp-demo-docker-virtual"
+          XRAY_POLICY_NAME: "aigp-critical-cve-policy"
+          XRAY_WATCH_NAME: "aigp-model-watch"
         run: |
           set -euo pipefail
           bash setup/00_platform_setup.sh
