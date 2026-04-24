@@ -74,6 +74,7 @@ jobs:
           APP_KEY: ${{ vars.APP_KEY }}
           EVIDENCE_KEY_ALIAS: ${{ vars.EVIDENCE_KEY_ALIAS }}
           JFROG_TOKEN: ${{ secrets.JFROG_TOKEN }}
+          JF_ADMIN_TOKEN: ${{ secrets.JFROG_TOKEN }}
         run: |
           set -euo pipefail
           bash setup/00_platform_setup.sh
