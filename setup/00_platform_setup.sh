@@ -211,6 +211,28 @@ create_repo "${DOCKER_VIRTUAL_REPO}" "$(jq -n \
     "repositories": [$local_repo, $remote_repo],
     "defaultDeploymentRepo": $deploy}')"
 
+# Assign repos to project (idempotent — 2xx whether already assigned or not)
+assign_repo_to_project() {
+  local repo_key="$1"
+  log_step "Assigning repo '${repo_key}' to project '${PROJECT_KEY}'"
+  local code
+  code=$(jfrog_api_call PUT \
+    "${JPD}/access/api/v1/projects/_/attach/repositories/${repo_key}?projectKey=${PROJECT_KEY}")
+  case "$code" in
+    200|201|204)
+      log_success "Repo '${repo_key}' assigned to project '${PROJECT_KEY}' (HTTP $code)" ;;
+    409)
+      log_warning "Repo '${repo_key}' already assigned to project (HTTP $code)" ;;
+    *)
+      log_error "Repo '${repo_key}' project assignment failed (HTTP $code)"
+      FAILED=true ;;
+  esac
+}
+
+assign_repo_to_project "${DOCKER_LOCAL_REPO}"
+assign_repo_to_project "${DOCKER_REMOTE_REPO}"
+assign_repo_to_project "${DOCKER_VIRTUAL_REPO}"
+
 # =============================================================================
 # SECTION 3 -- Lifecycle Stages
 # AIGP: Domain IV — Conformity assessment requires defined promotion stages
