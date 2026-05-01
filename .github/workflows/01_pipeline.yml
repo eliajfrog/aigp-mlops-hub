@@ -54,6 +54,7 @@ jobs:
       APP_VERSION:          ${{ github.event.inputs.app_version }}
       JPD_URL:              ${{ vars.JF_URL }}
       JF_URL:               ${{ vars.JF_URL }}
+      PROJECT_KEY:          ${{ vars.PROJECT_KEY }}
       JF_ADMIN_TOKEN:       ${{ secrets.JFROG_TOKEN }}
       EVIDENCE_PRIVATE_KEY: ${{ secrets.EVIDENCE_PRIVATE_KEY }}
       EVIDENCE_KEY_ALIAS:   ${{ vars.EVIDENCE_KEY_ALIAS }}

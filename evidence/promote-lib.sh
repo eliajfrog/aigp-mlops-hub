@@ -41,18 +41,22 @@ create_app_version() {
   : "${JF_ADMIN_TOKEN:?JF_ADMIN_TOKEN is required}"
   : "${APPLICATION_KEY:?APPLICATION_KEY is required}"
   : "${APP_VERSION:?APP_VERSION is required}"
+  : "${PROJECT_KEY:?PROJECT_KEY is required}"
 
   _promo_log "Creating ${APPLICATION_KEY}@${APP_VERSION} in AppTrust..."
 
   local payload
   payload=$(jq -n --arg v "${APP_VERSION}" '{"version": $v}')
 
-  local http_status
-  http_status=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+  local response_body http_status
+  response_body="$(mktemp /tmp/create_version_XXXXXX.json)"
+
+  http_status=$(curl --silent --output "${response_body}" --write-out "%{http_code}" \
     --request POST \
     --url "${_JPD}/apptrust/api/v1/applications/${APPLICATION_KEY}/versions?async=false" \
     --header "Authorization: Bearer ${JF_ADMIN_TOKEN}" \
     --header "Content-Type: application/json" \
+    --header "X-JFrog-Project: ${PROJECT_KEY}" \
     --data "${payload}")
 
   if [[ "${http_status}" == "201" ]]; then
@@ -61,8 +65,12 @@ create_app_version() {
     _promo_warn "Version ${APP_VERSION} already exists -- continuing"
   else
     _promo_err "create_app_version: unexpected HTTP ${http_status}"
+    _promo_err "Response: $(cat "${response_body}")"
+    rm -f "${response_body}"
     return 1
   fi
+
+  rm -f "${response_body}"
 }
 
 # =============================================================================
