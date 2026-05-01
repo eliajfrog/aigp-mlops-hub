@@ -177,9 +177,9 @@ create_repo() {
   local repo_key="$1"
   local payload="$2"
 
-  # Always POST — creates if missing, updates if exists (applies xrayIndex on re-run)
+  # PUT creates-or-updates (idempotent); POST only updates existing repos (404 if missing)
   local code
-  code=$(jfrog_api_call POST \
+  code=$(jfrog_api_call PUT \
     "${JPD}/artifactory/api/repositories/${repo_key}?project=${PROJECT_KEY}" "$payload")
   case "$code" in
     200|201)
