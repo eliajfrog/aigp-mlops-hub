@@ -46,15 +46,18 @@ create_app_version() {
   _promo_log "Creating ${APPLICATION_KEY}@${APP_VERSION} in AppTrust..."
 
   local payload
-  payload=$(jq -n --arg v "${APP_VERSION}" \
+  payload=$(jq -n \
+    --arg v    "${APP_VERSION}" \
+    --arg name "${JFROG_CLI_BUILD_NAME}" \
+    --arg num  "${JFROG_CLI_BUILD_NUMBER}" \
     '{
       "version": $v,
       "application_name": "AIGP DevOps Helper LLM",
       "sources": {
         "builds": [
           {
-            "name": "aigp-governance-pipeline",
-            "number": "1",
+            "name": $name,
+            "number": $num,
             "repository_key": "aigp-demo-build-info",
             "include_dependencies": false
           }
