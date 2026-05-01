@@ -46,7 +46,18 @@ create_app_version() {
   _promo_log "Creating ${APPLICATION_KEY}@${APP_VERSION} in AppTrust..."
 
   local payload
-  payload=$(jq -n --arg v "${APP_VERSION}" '{"version": $v, "sources": {}}')
+  payload=$(jq -n --arg v "${APP_VERSION}" \
+    '{
+      "version": $v,
+      "sources": {
+        "direct": [
+          {
+            "path": "devops_helper_elia_v2",
+            "repo_key": "aigp-demo-docker-local"
+          }
+        ]
+      }
+    }')
 
   local response_body http_status
   response_body="$(mktemp /tmp/create_version_XXXXXX.json)"
