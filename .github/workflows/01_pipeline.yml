@@ -85,12 +85,6 @@ jobs:
           echo "STAGE_QA:        ${STAGE_QA}"
         shell: bash
 
-      - name: Publish build info
-        run: |
-          set -euo pipefail
-          jf rt build-publish --project "${PROJECT_KEY}"
-        shell: bash
-
       - name: Create application version in AppTrust
         run: |
           set -euo pipefail

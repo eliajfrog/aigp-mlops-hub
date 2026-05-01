@@ -32,62 +32,28 @@ _promo_err() { echo "[ERROR] $*" >&2; }
 # =============================================================================
 # create_app_version
 #
-# Creates the AppTrust application version. Idempotent: 409 = already exists.
+# Creates the AppTrust application version via jf apptrust CLI.
+# Idempotent: "already exists" in CLI output is treated as success.
 # =============================================================================
 create_app_version() {
-  local _JPD="${JPD_URL%/}"
-
-  : "${_JPD:?JPD_URL is required}"
-  : "${JF_ADMIN_TOKEN:?JF_ADMIN_TOKEN is required}"
   : "${APPLICATION_KEY:?APPLICATION_KEY is required}"
   : "${APP_VERSION:?APP_VERSION is required}"
-  : "${PROJECT_KEY:?PROJECT_KEY is required}"
 
   _promo_log "Creating ${APPLICATION_KEY}@${APP_VERSION} in AppTrust..."
 
-  local payload
-  payload=$(jq -n \
-    --arg v    "${APP_VERSION}" \
-    --arg name "${JFROG_CLI_BUILD_NAME}" \
-    --arg num  "${JFROG_CLI_BUILD_NUMBER}" \
-    '{
-      "version": $v,
-      "application_name": "AIGP DevOps Helper LLM",
-      "sources": {
-        "builds": [
-          {
-            "name": $name,
-            "number": $num,
-            "repository_key": "aigp-demo-build-info",
-            "include_dependencies": false
-          }
-        ]
-      }
-    }')
+  local output exit_code=0
+  output=$(jf apptrust version-create "${APPLICATION_KEY}" "${APP_VERSION}" 2>&1) \
+    || exit_code=$?
 
-  local response_body http_status
-  response_body="$(mktemp /tmp/create_version_XXXXXX.json)"
-
-  http_status=$(curl --silent --output "${response_body}" --write-out "%{http_code}" \
-    --request POST \
-    --url "${_JPD}/apptrust/api/v1/applications/${APPLICATION_KEY}/versions?async=false" \
-    --header "Authorization: Bearer ${JF_ADMIN_TOKEN}" \
-    --header "Content-Type: application/json" \
-    --header "X-JFrog-Project: ${PROJECT_KEY}" \
-    --data "${payload}")
-
-  if [[ "${http_status}" == "201" ]]; then
+  if [[ ${exit_code} -eq 0 ]]; then
     _promo_ok "Version ${APP_VERSION} created"
-  elif [[ "${http_status}" == "409" ]]; then
+  elif echo "${output}" | grep -qi "already exist"; then
     _promo_warn "Version ${APP_VERSION} already exists -- continuing"
   else
-    _promo_err "create_app_version: unexpected HTTP ${http_status}"
-    _promo_err "Response: $(cat "${response_body}")"
-    rm -f "${response_body}"
-    return 1
+    _promo_err "create_app_version failed (exit ${exit_code})"
+    _promo_err "Output: ${output}"
+    return ${exit_code}
   fi
-
-  rm -f "${response_body}"
 }
 
 # =============================================================================
