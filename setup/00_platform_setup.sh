@@ -266,6 +266,12 @@ create_repo "${DOCKER_PROD_LOCAL_REPO}" "$(jq -n \
   '{"rclass": "local", "packageType": "docker",
     "dockerApiVersion": "V2", "xrayIndex": "true"}')"
 
+# Assign stage repos to project before assigning to lifecycle stage —
+# POST /api/repositories/{key} {"projectKey":"..."} per JFrog projects-api spec
+assign_repo_to_project "${DOCKER_DEV_LOCAL_REPO}"
+assign_repo_to_project "${DOCKER_QA_LOCAL_REPO}"
+assign_repo_to_project "${DOCKER_PROD_LOCAL_REPO}"
+
 # Assign each stage repo to its corresponding lifecycle stage
 assign_repo_to_stage() {
   local repo_key="$1"
