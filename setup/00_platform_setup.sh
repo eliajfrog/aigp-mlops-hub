@@ -267,9 +267,8 @@ create_repo "${DOCKER_PROD_LOCAL_REPO}" "$(jq -n \
     "dockerApiVersion": "V2", "xrayIndex": "true"}')"
 
 # Assign each stage repo to project AND lifecycle stage in one atomic call.
-# Combining projectKey + stages in a single POST ensures the stages array is
-# replaced (not merged), removing any global DEV assignment Artifactory may
-# have set when the repo was first added to the project.
+# Repos are assigned to lifecycle stages via the "environments" field (not
+# "stages") — per Artifactory repo config schema and platform-access-entities.
 assign_repo_to_project_and_stage() {
   local repo_key="$1"
   local stage_name="$2"
@@ -278,7 +277,7 @@ assign_repo_to_project_and_stage() {
   payload=$(jq -n \
     --arg proj "${PROJECT_KEY}" \
     --arg stage "${stage_name}" \
-    '{"projectKey": $proj, "stages": [$stage]}')
+    '{"projectKey": $proj, "environments": [$stage]}')
   local code
   code=$(jfrog_api_call POST \
     "${JPD}/artifactory/api/repositories/${repo_key}" "$payload")
