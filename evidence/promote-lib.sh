@@ -49,11 +49,14 @@ create_app_version() {
   payload=$(jq -n --arg v "${APP_VERSION}" \
     '{
       "version": $v,
+      "application_name": "AIGP DevOps Helper LLM",
       "sources": {
-        "direct": [
+        "builds": [
           {
-            "path": "devops_helper_elia_v2",
-            "repo_key": "aigp-demo-docker-local"
+            "name": "aigp-governance-pipeline",
+            "number": "1",
+            "repository_key": "aigp-demo-build-info",
+            "include_dependencies": false
           }
         ]
       }
