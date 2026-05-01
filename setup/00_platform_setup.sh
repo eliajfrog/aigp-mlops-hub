@@ -235,6 +235,45 @@ assign_repo_to_project "${DOCKER_LOCAL_REPO}"
 assign_repo_to_project "${DOCKER_REMOTE_REPO}"
 assign_repo_to_project "${DOCKER_VIRTUAL_REPO}"
 
+# Per-stage local Docker repos — one per lifecycle stage for stage-scoped
+# artifact storage (AIGP Domain IV evidence traceability requirement)
+DOCKER_DEV_LOCAL_REPO="aigp-demo-docker-dev-local"
+DOCKER_QA_LOCAL_REPO="aigp-demo-docker-qa-local"
+DOCKER_PROD_LOCAL_REPO="aigp-demo-docker-prod-local"
+
+create_repo "${DOCKER_DEV_LOCAL_REPO}" "$(jq -n \
+  '{"rclass": "local", "packageType": "docker",
+    "dockerApiVersion": "V2", "xrayIndex": "true"}')"
+
+create_repo "${DOCKER_QA_LOCAL_REPO}" "$(jq -n \
+  '{"rclass": "local", "packageType": "docker",
+    "dockerApiVersion": "V2", "xrayIndex": "true"}')"
+
+create_repo "${DOCKER_PROD_LOCAL_REPO}" "$(jq -n \
+  '{"rclass": "local", "packageType": "docker",
+    "dockerApiVersion": "V2", "xrayIndex": "true"}')"
+
+assign_repo_to_project "${DOCKER_DEV_LOCAL_REPO}"
+assign_repo_to_project "${DOCKER_QA_LOCAL_REPO}"
+assign_repo_to_project "${DOCKER_PROD_LOCAL_REPO}"
+
+# Assign each stage repo to its corresponding lifecycle stage
+assign_repo_to_stage() {
+  local repo_key="$1"
+  local stage_name="$2"
+  log_step "Assigning repo '${repo_key}' to stage '${stage_name}'"
+  local payload
+  payload=$(jq -n --arg stage "${stage_name}" '{"stages": [$stage]}')
+  local code
+  code=$(jfrog_api_call PATCH \
+    "${JPD}/artifactory/api/repositories/${repo_key}" "$payload")
+  handle_api_response "$code" "Repo '${repo_key}' stage assignment" "to '${stage_name}'" || FAILED=true
+}
+
+assign_repo_to_stage "${DOCKER_DEV_LOCAL_REPO}"  "${STAGE_DEV}"
+assign_repo_to_stage "${DOCKER_QA_LOCAL_REPO}"   "${STAGE_QA}"
+assign_repo_to_stage "${DOCKER_PROD_LOCAL_REPO}" "${STAGE_PROD}"
+
 # =============================================================================
 # SECTION 3 -- Lifecycle Stages
 # AIGP: Domain IV — Conformity assessment requires defined promotion stages
