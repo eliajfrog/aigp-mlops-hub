@@ -46,7 +46,7 @@ create_app_version() {
   _promo_log "Creating ${APPLICATION_KEY}@${APP_VERSION} in AppTrust..."
 
   local payload
-  payload=$(jq -n --arg v "${APP_VERSION}" '{"version": $v, "sources": []}')
+  payload=$(jq -n --arg v "${APP_VERSION}" '{"version": $v, "sources": {}}')
 
   local response_body http_status
   response_body="$(mktemp /tmp/create_version_XXXXXX.json)"
