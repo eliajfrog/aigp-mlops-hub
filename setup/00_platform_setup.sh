@@ -266,28 +266,28 @@ create_repo "${DOCKER_PROD_LOCAL_REPO}" "$(jq -n \
   '{"rclass": "local", "packageType": "docker",
     "dockerApiVersion": "V2", "xrayIndex": "true"}')"
 
-# Assign stage repos to project before assigning to lifecycle stage —
-# POST /api/repositories/{key} {"projectKey":"..."} per JFrog projects-api spec
-assign_repo_to_project "${DOCKER_DEV_LOCAL_REPO}"
-assign_repo_to_project "${DOCKER_QA_LOCAL_REPO}"
-assign_repo_to_project "${DOCKER_PROD_LOCAL_REPO}"
-
-# Assign each stage repo to its corresponding lifecycle stage
-assign_repo_to_stage() {
+# Assign each stage repo to project AND lifecycle stage in one atomic call.
+# Combining projectKey + stages in a single POST ensures the stages array is
+# replaced (not merged), removing any global DEV assignment Artifactory may
+# have set when the repo was first added to the project.
+assign_repo_to_project_and_stage() {
   local repo_key="$1"
   local stage_name="$2"
-  log_step "Assigning repo '${repo_key}' to stage '${stage_name}'"
+  log_step "Assigning repo '${repo_key}' to project '${PROJECT_KEY}' and stage '${stage_name}'"
   local payload
-  payload=$(jq -n --arg stage "${stage_name}" '{"stages": [$stage]}')
+  payload=$(jq -n \
+    --arg proj "${PROJECT_KEY}" \
+    --arg stage "${stage_name}" \
+    '{"projectKey": $proj, "stages": [$stage]}')
   local code
   code=$(jfrog_api_call POST \
     "${JPD}/artifactory/api/repositories/${repo_key}" "$payload")
-  handle_api_response "$code" "Repo '${repo_key}' stage assignment" "to '${stage_name}'" || FAILED=true
+  handle_api_response "$code" "Repo '${repo_key}' project+stage assignment" "to '${stage_name}'" || FAILED=true
 }
 
-assign_repo_to_stage "${DOCKER_DEV_LOCAL_REPO}"  "${STAGE_DEV}"
-assign_repo_to_stage "${DOCKER_QA_LOCAL_REPO}"   "${STAGE_QA}"
-assign_repo_to_stage "${DOCKER_PROD_LOCAL_REPO}" "${STAGE_PROD}"
+assign_repo_to_project_and_stage "${DOCKER_DEV_LOCAL_REPO}"  "${STAGE_DEV}"
+assign_repo_to_project_and_stage "${DOCKER_QA_LOCAL_REPO}"   "${STAGE_QA}"
+assign_repo_to_project_and_stage "${DOCKER_PROD_LOCAL_REPO}" "${STAGE_PROD}"
 
 # =============================================================================
 # SECTION 3 -- Lifecycle Stages
