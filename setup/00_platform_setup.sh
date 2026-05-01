@@ -177,10 +177,23 @@ create_repo() {
   local repo_key="$1"
   local payload="$2"
 
-  # PUT creates-or-updates (idempotent); POST only updates existing repos (404 if missing)
+  # Artifactory repo API behaviour:
+  #   PUT  /api/repositories/{key}?project= — creates new repo (400 if already exists)
+  #   POST /api/repositories/{key}          — partial update of existing repo (404 if missing)
+  # Check first, then route to the correct method.
+  local check method url
+  check=$(jfrog_api_call GET "${JPD}/artifactory/api/repositories/${repo_key}")
+
+  if [[ "${check}" == "200" ]]; then
+    method="POST"
+    url="${JPD}/artifactory/api/repositories/${repo_key}"
+  else
+    method="PUT"
+    url="${JPD}/artifactory/api/repositories/${repo_key}?project=${PROJECT_KEY}"
+  fi
+
   local code
-  code=$(jfrog_api_call PUT \
-    "${JPD}/artifactory/api/repositories/${repo_key}?project=${PROJECT_KEY}" "$payload")
+  code=$(jfrog_api_call "${method}" "${url}" "$payload")
   case "$code" in
     200|201)
       log_success "Repo '${repo_key}' created/updated (HTTP $code)" ;;
