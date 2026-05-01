@@ -49,13 +49,13 @@ generate_random_values() {
 
   # Impact assessment fields
   export RISK_LEVEL="LOW"
-  export RISK_SCORE="$(echo "scale=2; $(shuf -i 10-35 -n1)/100" | bc)"
+  export RISK_SCORE="0$(echo "scale=2; $(shuf -i 10-35 -n1)/100" | bc)"
 
   # TEVV bias test fields
   export TOTAL_TESTS=$((20 + RANDOM % 30))
   export PASSED_TESTS=$((TOTAL_TESTS - RANDOM % 3))
   export FAILED_TESTS=$((TOTAL_TESTS - PASSED_TESTS))
-  export BIAS_SCORE="$(echo "scale=3; $(shuf -i 950-999 -n1)/1000" | bc)"
+  export BIAS_SCORE="0$(echo "scale=3; $(shuf -i 950-999 -n1)/1000" | bc)"
 
   _evd_log "Random values: ASSESSMENT_ID=${ASSESSMENT_ID} TOTAL_TESTS=${TOTAL_TESTS} BIAS_SCORE=${BIAS_SCORE}"
 }
