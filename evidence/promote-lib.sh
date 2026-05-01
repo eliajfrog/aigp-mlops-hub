@@ -42,7 +42,9 @@ create_app_version() {
   _promo_log "Creating ${APPLICATION_KEY}@${APP_VERSION} in AppTrust..."
 
   local output exit_code=0
-  output=$(jf apptrust version-create "${APPLICATION_KEY}" "${APP_VERSION}" 2>&1) \
+  output=$(jf apptrust version-create "${APPLICATION_KEY}" "${APP_VERSION}" \
+    --source-type-packages "type=docker, name=devops_helper_elia_v2, version=dde75061-8e4e-44c3-b1ef-4dbd355a38a1, repo-key=eliadevopsai-eliadevopsai-docker-local" \
+    2>&1) \
     || exit_code=$?
 
   if [[ ${exit_code} -eq 0 ]]; then
