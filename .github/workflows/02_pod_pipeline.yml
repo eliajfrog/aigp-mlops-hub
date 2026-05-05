@@ -1,0 +1,187 @@
+# =============================================================================
+# 02_pod_pipeline.yml — AI Governance Pipeline (TRACK 2: FastAPI Pod)
+# Phase: 2
+#
+# What it does:
+#   Builds the aigp-devops-helper-pod Docker image, pushes it to
+#   aigp-demo-docker-dev-local, and governs it through the full AppTrust
+#   evidence gate chain: UNASSIGNED -> DEV -> QA -> PROD.
+#
+# Evidence attached:
+#   UNASSIGNED exit: aigp-impact-assessment        (FAKE -- EU AI Act Art. 9)
+#   DEV exit:        aigp-tevv-bias-test            (FAKE -- EU AI Act Art. 9)
+#   QA exit:         aigp-model-card                (REAL -- EU AI Act Art. 13)
+#   QA exit:         aigp-human-oversight-approval  (MANUAL -- EU AI Act Art. 14)
+#
+# Human approval:
+#   The pipeline blocks at the final step until a human attaches the
+#   aigp-human-oversight-approval evidence in the AppTrust UI.
+#   Default timeout: 30 minutes.
+#
+# Auth method:
+#   OIDC via aigp-hub-github -- no long-lived tokens stored in GitHub.
+#   JF_ADMIN_TOKEN (mapped from JFROG_TOKEN secret) is used only for
+#   AppTrust REST API calls that the JF CLI cannot make directly.
+#
+# Important:
+#   async=false is MANDATORY on all AppTrust promotion API calls.
+#   This is enforced in evidence/promote-lib.sh -- do not change.
+# =============================================================================
+
+name: "02 -- Governance Pipeline (TRACK 2: FastAPI Pod)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: "Pod version to build and govern (e.g. 1.0.0)"
+        required: true
+        default: "1.0.0"
+
+concurrency:
+  group: governance-pipeline-pod-${{ github.event.inputs.app_version }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-govern-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      APPLICATION_KEY:      aigp-devops-helper-llm
+      APP_VERSION:          ${{ github.event.inputs.app_version }}
+      JPD_URL:              https://tsmemea.jfrog.io
+      JF_URL:               https://tsmemea.jfrog.io
+      PROJECT_KEY:          ${{ vars.PROJECT_KEY }}
+      JF_ADMIN_TOKEN:       ${{ secrets.JFROG_TOKEN }}
+      EVIDENCE_PRIVATE_KEY: ${{ secrets.EVIDENCE_PRIVATE_KEY }}
+      EVIDENCE_KEY_ALIAS:   ${{ vars.EVIDENCE_KEY_ALIAS }}
+      STAGE_DEV:            "aigp-demo-DEV"
+      STAGE_QA:             "aigp-demo-QA"
+      STAGE_PROD:           "PROD"
+      TEMPLATES_DIR:        "evidence/templates"
+      MODEL_CARD_PATH:      "models/devops-helper/model_card.json"
+      IMAGE_NAME:           aigp-devops-helper-pod
+      DOCKER_DEV_REPO:      aigp-demo-docker-dev-local
+      DOCKER_PROD_REPO:     aigp-demo-docker-prod-local
+      REGISTRY:             tsmemea.jfrog.io
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI (OIDC)
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+        with:
+          oidc-provider-name: aigp-hub-github
+          oidc-audience: jfrog-github
+
+      - name: Docker login to Artifactory
+        run: |
+          set -euo pipefail
+          jf docker login "${REGISTRY}"
+        shell: bash
+
+      - name: Build Docker image
+        run: |
+          set -euo pipefail
+          docker build \
+            -t "${REGISTRY}/${DOCKER_DEV_REPO}/${IMAGE_NAME}:${APP_VERSION}" \
+            pod/
+        shell: bash
+
+      - name: Push image to dev repo
+        run: |
+          set -euo pipefail
+          jf docker push \
+            "${REGISTRY}/${DOCKER_DEV_REPO}/${IMAGE_NAME}:${APP_VERSION}" \
+            --project "${PROJECT_KEY}"
+        shell: bash
+
+      - name: Create application version in AppTrust
+        run: |
+          set -euo pipefail
+          exit_code=0
+          output=$(jf apptrust version-create "${APPLICATION_KEY}" "${APP_VERSION}" \
+            --source-type-packages "type=docker, name=${IMAGE_NAME}, version=${APP_VERSION}, repo-key=${DOCKER_DEV_REPO}" \
+            2>&1) || exit_code=$?
+          if [[ ${exit_code} -eq 0 ]]; then
+            echo "[OK]   Version ${APP_VERSION} created"
+          elif echo "${output}" | grep -qi "already exist"; then
+            echo "[WARN] Version ${APP_VERSION} already exists -- continuing"
+          else
+            echo "[ERROR] version-create failed (exit ${exit_code})"
+            echo "${output}"
+            exit ${exit_code}
+          fi
+        shell: bash
+
+      - name: "UNASSIGNED exit -- attach impact assessment evidence"
+        run: |
+          set -euo pipefail
+          source evidence/evidence-lib.sh
+          attach_impact_assessment_evidence
+        shell: bash
+
+      - name: Promote to DEV
+        run: |
+          set -euo pipefail
+          source evidence/promote-lib.sh
+          advance_to_stage "${STAGE_DEV}"
+        shell: bash
+
+      - name: "DEV exit -- attach TEVV bias test evidence"
+        run: |
+          set -euo pipefail
+          source evidence/evidence-lib.sh
+          attach_tevv_bias_test_evidence
+        shell: bash
+
+      - name: Promote to QA
+        run: |
+          set -euo pipefail
+          source evidence/promote-lib.sh
+          advance_to_stage "${STAGE_QA}"
+        shell: bash
+
+      - name: "QA exit -- attach model card evidence"
+        run: |
+          set -euo pipefail
+          source evidence/evidence-lib.sh
+          attach_model_card_evidence
+        shell: bash
+
+      - name: "QA exit -- wait for human approval and release to PROD"
+        timeout-minutes: 35
+        run: |
+          set -euo pipefail
+          source evidence/promote-lib.sh
+          wait_for_human_approval 30 60
+        shell: bash
+
+      - name: Deploy to Kubernetes
+        run: |
+          # TODO: kubectl apply -f pod/k8s/ --namespace aigp-demo
+          echo "Deploy step placeholder -- k8s manifests TBD"
+        shell: bash
+
+      - name: Print governance summary
+        if: success()
+        run: |
+          echo "Governance pipeline complete."
+          echo "  Application: ${APPLICATION_KEY} v${APP_VERSION}"
+          echo "  Image:       ${REGISTRY}/${DOCKER_DEV_REPO}/${IMAGE_NAME}:${APP_VERSION}"
+          echo "  Final stage: PROD"
+          echo "  AppTrust:    ${JPD_URL}/ui/apptrust/applications/${APPLICATION_KEY}"
+          echo ""
+          echo "Evidence gate chain satisfied:"
+          echo "  [UNASSIGNED] aigp-impact-assessment        EU AI Act Art. 9"
+          echo "  [DEV]        aigp-tevv-bias-test            EU AI Act Art. 9"
+          echo "  [QA]         aigp-model-card                EU AI Act Art. 13"
+          echo "  [QA]         aigp-human-oversight-approval  EU AI Act Art. 14"
+        shell: bash
