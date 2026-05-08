@@ -166,7 +166,8 @@ wait_for_human_approval() {
       --request POST \
       --url "${_JPD}/apptrust/api/v1/applications/${APPLICATION_KEY}/versions/${APP_VERSION}/release?async=false" \
       --header "Authorization: Bearer ${JF_ADMIN_TOKEN}" \
-      --header "Content-Type: application/json")
+      --header "Content-Type: application/json" \
+      --data '{}')
 
     if [[ "${http_status}" == "200" ]]; then
       rm -f "${response_body}"
