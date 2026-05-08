@@ -434,6 +434,7 @@ create_policy_if_missing() {
   local stage_key="$3"
   local gate="$4"
   local rule_name="$5"
+  local mode="${6:-warning}"
 
   # Check if policy already exists
   local policies_tmp
@@ -475,9 +476,10 @@ create_policy_if_missing() {
     --arg stage "$stage_key" \
     --arg rule_id "$rule_id" \
     --arg proj "${PROJECT_KEY}" \
+    --arg mode "$mode" \
     '{"name": $name, "description": $desc,
       "action": {"stage": {"gate": $gate, "key": $stage}, "type": "certify_to_gate"},
-      "enabled": true, "mode": "warning",
+      "enabled": true, "mode": $mode,
       "rule_ids": [$rule_id],
       "scope": {"project_keys": [$proj], "type": "project"}}')
 
@@ -505,14 +507,16 @@ create_policy_if_missing \
   "aigp-qa-exit-model-card" \
   "EU AI Act Art.13 -- Model Card required before PROD" \
   "${STAGE_QA}" "exit" \
-  "aigp-model-card-rule"
+  "aigp-model-card-rule" \
+  "block"
 
 # EU AI Act: Art. 14 — Human oversight approval required before PROD
 create_policy_if_missing \
   "aigp-qa-exit-human-oversight" \
   "EU AI Act Art.14 -- Human oversight approval required before PROD" \
   "${STAGE_QA}" "exit" \
-  "aigp-human-oversight-approval-rule"
+  "aigp-human-oversight-approval-rule" \
+  "block"
 
 # PROD release gate: DEV exit must be certified
 create_policy_if_missing \
