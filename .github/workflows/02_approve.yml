@@ -1,0 +1,74 @@
+# =============================================================================
+# 02_approve.yml — Human Oversight Approval (TRACK 2: FastAPI Pod)
+#
+# What it does:
+#   Attaches the aigp-human-oversight-approval evidence to the specified
+#   application version in AppTrust. Once attached, the polling loop in
+#   02_pod_pipeline.yml will detect the satisfied gate and release to PROD.
+#
+# When to trigger:
+#   After 02_pod_pipeline.yml prints "HUMAN APPROVAL REQUIRED" and is
+#   waiting in the "QA exit -- wait for human approval" step.
+#
+# Who triggers it:
+#   The designated human approver — not the build pipeline.
+#   This is the EU AI Act Art. 14 human oversight moment.
+#
+# Auth method:
+#   OIDC via aigp-hub-github -- no long-lived tokens stored in GitHub.
+# =============================================================================
+
+name: "02 -- Human Oversight Approval"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: "Version to approve for PROD release (e.g. 1.0.0)"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+
+    env:
+      APPLICATION_KEY:      aigp-devops-helper-llm
+      APP_VERSION:          ${{ github.event.inputs.app_version }}
+      JPD_URL:              https://tsmemea.jfrog.io
+      JF_URL:               https://tsmemea.jfrog.io
+      PROJECT_KEY:          ${{ vars.PROJECT_KEY }}
+      JF_ADMIN_TOKEN:       ${{ secrets.JFROG_TOKEN }}
+      EVIDENCE_PRIVATE_KEY: ${{ secrets.EVIDENCE_PRIVATE_KEY }}
+      EVIDENCE_KEY_ALIAS:   ${{ vars.EVIDENCE_KEY_ALIAS }}
+      STAGE_DEV:            "aigp-demo-DEV"
+      STAGE_QA:             "aigp-demo-QA"
+      STAGE_PROD:           "PROD"
+      TEMPLATES_DIR:        "evidence/templates"
+      MODEL_CARD_PATH:      "models/devops-helper/model_card.json"
+      IMAGE_NAME:           aigp-devops-helper-pod
+      DOCKER_DEV_REPO:      aigp-demo-docker-dev-local
+      DOCKER_PROD_REPO:     aigp-demo-docker-prod-local
+      REGISTRY:             tsmemea.jfrog.io
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI (OIDC)
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+        with:
+          oidc-provider-name: aigp-hub-github
+          oidc-audience: jfrog-github
+
+      - name: "QA exit -- attach human oversight approval evidence"
+        run: |
+          set -euo pipefail
+          source evidence/evidence-lib.sh
+          attach_human_oversight_evidence
+        shell: bash

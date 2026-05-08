@@ -256,6 +256,66 @@ MDEOF
 }
 
 # =============================================================================
+# attach_human_oversight_evidence
+#
+# MANUAL evidence — approver identity, timestamp, approval decision.
+# Called by 02_approve.yml when the designated human approver triggers
+# the approval workflow after reviewing the evidence in AppTrust.
+#
+# AIGP BoK: Domain I   — Human agency and oversight
+# EU AI Act: Art. 14   — Human oversight measures
+# Gate: QA exit (released to PROD only after this evidence is attached)
+# =============================================================================
+attach_human_oversight_evidence() {
+  _evd_log "--- Human Oversight Approval (QA exit) ---"
+
+  : "${APPLICATION_KEY:?APPLICATION_KEY is required}"
+  : "${APP_VERSION:?APP_VERSION is required}"
+
+  local predicate_file markdown_file timestamp
+  predicate_file="$(mktemp /tmp/human_oversight_XXXXXX.json)"
+  markdown_file="$(mktemp /tmp/human_oversight_XXXXXX.md)"
+  timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  jq -n \
+    --arg approver "elia@jfrog.com" \
+    --arg ts        "${timestamp}" \
+    --arg app       "${APPLICATION_KEY}" \
+    --arg ver       "${APP_VERSION}" \
+    '{
+      "approver":    $approver,
+      "approved":    true,
+      "timestamp":   $ts,
+      "comment":     "Human oversight review completed - approved for PROD",
+      "application": $app,
+      "version":     $ver
+    }' > "${predicate_file}"
+
+  cat > "${markdown_file}" <<MDEOF
+## AIGP Human Oversight Approval
+
+| Field | Value |
+|---|---|
+| Approver | elia@jfrog.com |
+| Application | ${APPLICATION_KEY} v${APP_VERSION} |
+| Decision | Approved for PROD |
+| Timestamp | ${timestamp} |
+
+**Compliance:** EU AI Act Art. 14 -- Human oversight measures
+**AIGP BoK:** Domain I -- Human agency and oversight
+**NIST AI RMF:** GOVERN function
+MDEOF
+
+  evd_create \
+    "${predicate_file}" \
+    "https://aigp.iapp.org/evidence/human-oversight/v1" \
+    "${markdown_file}" \
+    "aigp-human-oversight-approval"
+
+  rm -f "${predicate_file}" "${markdown_file}"
+}
+
+# =============================================================================
 # attach_evidence_for_stage
 #
 # Routes evidence attachment based on the current pipeline stage.

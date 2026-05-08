@@ -156,6 +156,17 @@ jobs:
           attach_model_card_evidence
         shell: bash
 
+      - name: "QA exit -- request human approval"
+        run: |
+          echo "========================================="
+          echo "HUMAN APPROVAL REQUIRED"
+          echo "Version: ${APP_VERSION}"
+          echo "To approve, trigger workflow:"
+          echo "  02 -- Human Oversight Approval"
+          echo "  with app_version: ${APP_VERSION}"
+          echo "========================================="
+        shell: bash
+
       - name: "QA exit -- wait for human approval and release to PROD"
         timeout-minutes: 35
         run: |
