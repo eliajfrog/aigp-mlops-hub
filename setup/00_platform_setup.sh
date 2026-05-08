@@ -427,7 +427,7 @@ create_or_update_rule \
 log_section "Section 5/7 -- Unified Policies"
 
 # create_policy_if_missing — pattern from BookVerse create_policies.sh
-# GET policies to skip if exists; resolve rule_id by name; POST policy
+# GET policies to find existing ID; resolve rule_id by name; PUT if exists / POST if not
 create_policy_if_missing() {
   local name="$1"
   local description="$2"
@@ -447,12 +447,7 @@ create_policy_if_missing() {
     '.items[] | select(.name == $n) | .id' "$policies_tmp" | head -1)
   rm -f "$policies_tmp"
 
-  if [[ -n "$existing_id" && "$existing_id" != "null" ]]; then
-    log_warning "Policy '${name}' already exists -- skipping"
-    return 0
-  fi
-
-  # Resolve rule ID by name
+  # Resolve rule ID by name (needed for both create and update)
   local rules_tmp
   rules_tmp=$(mktemp)
   jfrog_api_call GET "${JPD}/unifiedpolicy/api/v1/rules" "" "$rules_tmp" > /dev/null
@@ -462,12 +457,11 @@ create_policy_if_missing() {
   rm -f "$rules_tmp"
 
   if [[ -z "$rule_id" || "$rule_id" == "null" ]]; then
-    log_error "Rule '${rule_name}' not found -- cannot create policy '${name}'"
+    log_error "Rule '${rule_name}' not found -- cannot create/update policy '${name}'"
     FAILED=true
     return 1
   fi
 
-  log_step "Creating policy: ${name}"
   local payload
   payload=$(jq -n \
     --arg name "$name" \
@@ -483,9 +477,18 @@ create_policy_if_missing() {
       "rule_ids": [$rule_id],
       "scope": {"project_keys": [$proj], "type": "project"}}')
 
-  local code
-  code=$(jfrog_api_call POST "${JPD}/unifiedpolicy/api/v1/policies" "$payload")
-  handle_api_response "$code" "Policy '${name}'" "creation" || FAILED=true
+  if [[ -n "$existing_id" && "$existing_id" != "null" ]]; then
+    log_info "Policy '${name}' exists -- updating (ID: ${existing_id})"
+    local code
+    code=$(jfrog_api_call PUT \
+      "${JPD}/unifiedpolicy/api/v1/policies/${existing_id}" "$payload")
+    handle_api_response "$code" "Policy '${name}'" "update" || FAILED=true
+  else
+    log_step "Creating policy: ${name}"
+    local code
+    code=$(jfrog_api_call POST "${JPD}/unifiedpolicy/api/v1/policies" "$payload")
+    handle_api_response "$code" "Policy '${name}'" "creation" || FAILED=true
+  fi
 }
 
 # EU AI Act: Art. 9 — Risk management: Impact Assessment required before DEV entry
