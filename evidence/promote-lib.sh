@@ -168,14 +168,14 @@ wait_for_human_approval() {
       --header "Authorization: Bearer ${JF_ADMIN_TOKEN}" \
       --header "Content-Type: application/json")
 
-    rm -f "${response_body}"
-
     if [[ "${http_status}" == "200" ]]; then
+      rm -f "${response_body}"
       _promo_ok "Human approval confirmed -- released to PROD"
       return 0
     fi
 
-    _promo_log "Gate not satisfied (HTTP ${http_status}) -- waiting ${poll_interval}s"
+    _promo_log "Gate not satisfied (HTTP ${http_status}) -- response: $(cat "${response_body}")"
+    rm -f "${response_body}"
 
     if [[ ${attempt} -lt ${max_polls} ]]; then
       sleep "${poll_interval}"
